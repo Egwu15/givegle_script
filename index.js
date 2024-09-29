@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig, { debug: true });
 const db = getFirestore(app);
 
 const successfulTransactionId = [
-  "qVph6eSfvxUrijbMjrgI5kziKo23_1727625297730004",
+  "qVph6eSfvxUrijbMjrgI5kziKo23_1727648737494201",
 ];
 
 async function getDocuments() {
@@ -52,7 +52,7 @@ async function getDocuments() {
       );
 
       if (snap.empty) {
-        await setDoc(doc(userDonationCollection), donationData);
+        await setDoc(doc(userDonationCollection, donationData.tx_ref), donationData);
         console.log("donation added to user as successful", donationData);
       } else {
         console.log("donation already added to user", donationData);
