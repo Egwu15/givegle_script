@@ -1,3 +1,5 @@
+//Note: ALways run with node 18. You can use nvm to switch to node 18
+
 import { initializeApp } from "firebase/app";
 import {
   addDoc,
