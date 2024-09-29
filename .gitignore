@@ -1,2 +1,4 @@
 firebaseConfig.js
-node_modules/
+node_modules
+dist
+.env

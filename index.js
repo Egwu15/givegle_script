@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import {
+  addDoc,
   collection,
   doc,
   getDocs,
@@ -10,11 +11,11 @@ import {
 import { getFirestore, where } from "firebase/firestore";
 import firebaseConfig from "./firebaseConfig.js";
 
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig, { debug: true });
 const db = getFirestore(app);
 
 const successfulTransactionId = [
-  "OOaNMGLciGRMsigjNlGFa3EmYDg2_1719323509377657",
+  "qVph6eSfvxUrijbMjrgI5kziKo23_1727625297730004",
 ];
 
 async function getDocuments() {
@@ -22,43 +23,71 @@ async function getDocuments() {
   const successfulDonationsCollection = collection(db, "successfulDonation");
 
   for (let i = 0; i < successfulTransactionId.length; i++) {
-    const checkIfInSuccessfulTransaction = query(
-      pendingDonationsCollection,
-      where("tx_ref", "==", successfulTransactionId[i])
-    );
+    try {
+      const checkIfInSuccessfulTransaction = query(
+        pendingDonationsCollection,
+        where("tx_ref", "==", successfulTransactionId[i])
+      );
 
-    const snap = onSnapshot(checkIfInSuccessfulTransaction, (snapshot) => {
-      snapshot.forEach((element) => {
-        addSuccessfulPayment(element.data());
+      await onSnapshot(checkIfInSuccessfulTransaction, async (snapshot) => {
+        await processSnapshots(snapshot);
       });
-    });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+  async function addPaymentToUser(donationData) {
+    let snap;
+    try {
+      const userDonationCollection = collection(
+        db,
+        `users/${donationData.donor_uid}/donations`
+      );
+
+      snap = await getDocs(
+        query(
+          userDonationCollection,
+          where("tx_ref", "==", donationData.tx_ref)
+        )
+      );
+
+      if (snap.empty) {
+        await setDoc(doc(userDonationCollection), donationData);
+        console.log("donation added to user as successful", donationData);
+      } else {
+        console.log("donation already added to user", donationData);
+      }
+    } catch (error) {
+      console.log("error", error);
+    }
   }
   async function addSuccessfulPayment(donationData) {
-    const snap = await getDocs(
-      query(
-        successfulDonationsCollection,
-        where("tx_ref", "==", donationData.tx_ref)
-      )
-    );
-    if (snap.empty) {
-      const donation = await setDoc(
-        doc(successfulDonationsCollection),
-        donationData
+    let snap;
+    try {
+      console.log("donationData", donationData);
+      snap = await getDocs(
+        query(
+          successfulDonationsCollection,
+          where("tx_ref", "==", donationData.tx_ref)
+        )
       );
+    } catch (error) {
+      console.log("error", error);
+    }
+    if (snap.empty) {
+      await setDoc(doc(successfulDonationsCollection), donationData);
       console.log("donation added as successful", donationData);
     } else {
       console.log("donation already added", donationData);
     }
   }
 
-  //   const snapshot = await getDocs(pendingDonationsCollection);
-  //   let counter = 0;
-  //   snapshot.forEach((doc) => {
-  //     if (successfulTransactionId.includes(doc.id)) {
-  //       console.log(doc.id, " => ", doc.data());
-  //     }
-  //     console.log("checked:", counter++);
-  //   });
+  async function processSnapshots(snapshots) {
+    for (const element of snapshots.docs) {
+      await addSuccessfulPayment(element.data());
+      await addPaymentToUser(element.data());
+    }
+  }
 }
 
-await getDocuments();
+getDocuments().catch(console.error);
